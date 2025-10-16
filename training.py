@@ -1,87 +1,17 @@
 import mindspore as ms
 from mindspore import nn, ops, train
 from mindspore.dataset import GeneratorDataset
-from mindspore.dataset.transforms import TypeCast
 import mindspore.dataset.vision as vision
 import numpy as np
+import time
 
 # Import your custom modules
 from src.coco_dataset import CocoDataset
 from src.detector import TrafficVisionDetector
 
-def create_batched_generator(source_dataset, batch_size, image_transforms, shuffle=True):
-    """
-    A Python generator that manually shuffles, transforms, batches, and pads the data.
-    Includes detailed print statements for monitoring progress.
-    """
-    print("[Data Generator] Starting...")
-    indices = list(range(len(source_dataset)))
-    if shuffle:
-        print(f"[Data Generator] Shuffling {len(indices)} indices.")
-        np.random.shuffle(indices)
-
-    batch_buffer = []
-    batch_count = 0
-    total_samples = len(indices)
-
-    for i, idx in enumerate(indices):
-        print(f"[Data Generator] Processing sample {i+1}/{total_samples} (Index: {idx})...", end='\r')
-        image, boxes, labels = source_dataset[idx]
-        batch_buffer.append((image, boxes, labels))
-
-        if len(batch_buffer) == batch_size:
-            print(f"\n[Data Generator] Batch buffer full. Creating batch #{batch_count + 1}.")
-            images_list = [item[0] for item in batch_buffer]
-            boxes_list = [item[1] for item in batch_buffer]
-            labels_list = [item[2] for item in batch_buffer]
-
-            # 1. Apply transformations
-            transformed_images = []
-            for img in images_list:
-                transformed_img = img
-                for transform_op in image_transforms:
-                    transformed_img = transform_op(transformed_img)
-                transformed_images.append(transformed_img)
-            
-            # 2. Perform padding
-            max_objects = 0
-            for b in boxes_list:
-                if b.shape[0] > max_objects:
-                    max_objects = b.shape[0]
-            if max_objects == 0:
-                max_objects = 1
-
-            padded_boxes = []
-            padded_labels = []
-            for i in range(batch_size):
-                box_array = boxes_list[i]
-                padded_box = np.zeros((max_objects, 4), dtype=np.float32)
-                num_boxes = box_array.shape[0]
-                if num_boxes > 0:
-                    padded_box[:num_boxes, :] = box_array
-                padded_boxes.append(padded_box)
-
-                label_array = labels_list[i]
-                padded_label = np.full((max_objects,), -1, dtype=np.int32)
-                num_labels = label_array.shape[0]
-                if num_labels > 0:
-                    padded_label[:num_labels] = label_array
-                padded_labels.append(padded_label)
-
-            # 3. Stack and yield
-            final_images = np.stack(transformed_images)
-            final_boxes = np.stack(padded_boxes)
-            final_labels = np.stack(padded_labels)
-            
-            print(f"[Data Generator] Yielding batch #{batch_count + 1} with shape: Images-{final_images.shape}, Boxes-{final_boxes.shape}, Labels-{final_labels.shape}")
-            yield (final_images, final_boxes, final_labels)
-            
-            batch_count += 1
-            batch_buffer = []
-    print("\n[Data Generator] Finished processing all samples.")
-
 # --- Loss Function and Training Wrapper ---
 class WithLossCell(nn.Cell):
+    """Wraps the network with a loss function."""
     def __init__(self, network, loss_fn):
         super(WithLossCell, self).__init__(auto_prefix=False)
         self.network = network
@@ -92,99 +22,138 @@ class WithLossCell(nn.Cell):
         return self.loss_fn(box_preds, class_preds, gt_boxes, gt_labels)
 
 class DetectionLoss(nn.Cell):
-    """
-    An improved, but still simplified, loss function for object detection.
-    This version attempts to match predictions to ground truth boxes.
-    """
+    """Fully vectorized loss function for object detection."""
     def __init__(self):
         super().__init__()
-        self.smooth_l1_loss = nn.SmoothL1Loss()
-        self.cross_entropy_loss = nn.CrossEntropyLoss()
+        self.smooth_l1_loss = nn.SmoothL1Loss(reduction='sum')
+        self.cross_entropy_loss = nn.CrossEntropyLoss(reduction='sum')
 
     def construct(self, box_preds, class_preds, gt_boxes, gt_labels):
-        # Reshape model predictions for easier processing
-        box_preds = box_preds.transpose((0, 2, 3, 1)).reshape((-1, 4))
-        class_preds = class_preds.transpose((0, 2, 3, 1)).reshape((-1, 9)) # 8 classes + 1 background
-
-        # --- THIS IS THE UPGRADED LOGIC ---
-        # For simplicity, we process one image at a time from the batch
-        # A full implementation would vectorize this.
+        batch_size = box_preds.shape[0]
+        box_preds_reshaped = box_preds.transpose((0, 2, 3, 1)).reshape((batch_size, -1, 4))
+        class_preds_reshaped = class_preds.transpose((0, 2, 3, 1)).reshape((batch_size, -1, 9))
+        is_valid_label = (gt_labels > -1)
+        num_gt_objects_per_image = ops.cast(is_valid_label, ms.int32).sum(axis=1)
+        total_gt_objects = num_gt_objects_per_image.sum()
         
-        batch_size = gt_boxes.shape[0]
-        total_loss = 0.0
+        if total_gt_objects == 0:
+            return ms.Tensor(0.0, dtype=ms.float32)
 
+        max_objects_in_batch = gt_labels.shape[1]
+        range_tensor = ops.arange(max_objects_in_batch)
+        mask = range_tensor < num_gt_objects_per_image.expand_dims(1)
+        gt_boxes_masked = gt_boxes[mask]
+        gt_labels_masked = gt_labels[mask]
+        box_preds_to_consider = box_preds_reshaped[:, :max_objects_in_batch, :]
+        class_preds_to_consider = class_preds_reshaped[:, :max_objects_in_batch, :]
+        box_preds_masked = box_preds_to_consider[mask]
+        class_preds_masked = class_preds_to_consider[mask]
+        loss_reg = self.smooth_l1_loss(box_preds_masked, gt_boxes_masked)
+        loss_cls = self.cross_entropy_loss(class_preds_masked, gt_labels_masked)
+        total_loss = (loss_reg + loss_cls) / total_gt_objects
+        return total_loss
+
+# --- Fast In-Memory Generator ---
+def create_preloaded_generator(processed_data, batch_size):
+    """
+    A fast generator that creates batches from data already loaded in RAM.
+    """
+    data_size = len(processed_data)
+    indices = np.arange(data_size)
+    np.random.shuffle(indices)
+
+    for start_idx in range(0, data_size, batch_size):
+        end_idx = start_idx + batch_size
+        if end_idx > data_size:
+            continue # Drop remainder
+
+        batch_indices = indices[start_idx:end_idx]
+        
+        # Get data for the current batch
+        batch_images = [processed_data[i][0] for i in batch_indices]
+        batch_boxes = [processed_data[i][1] for i in batch_indices]
+        batch_labels = [processed_data[i][2] for i in batch_indices]
+        
+        # --- Perform Padding ---
+        max_objects = 0
+        for b in batch_boxes:
+            if b.shape[0] > max_objects:
+                max_objects = b.shape[0]
+        if max_objects == 0:
+            max_objects = 1
+
+        padded_boxes = []
+        padded_labels = []
         for i in range(batch_size):
-            # We will perform a very naive matching for demonstration
-            # We'll compare the model's first few predictions with the ground-truth boxes
-            
-            num_gt_objects = ops.count_nonzero(gt_labels[i] > -1) # Count non-padded labels
+            box_array = batch_boxes[i]
+            padded_box = np.zeros((max_objects, 4), dtype=np.float32)
+            if box_array.shape[0] > 0:
+                padded_box[:box_array.shape[0], :] = box_array
+            padded_boxes.append(padded_box)
 
-            if num_gt_objects > 0:
-                # Get the predictions and ground truths for this one image
-                # For simplicity, we only consider as many predictions as there are GT objects
-                preds_to_consider = box_preds[i * num_gt_objects : (i + 1) * num_gt_objects]
-                gt_boxes_for_image = gt_boxes[i, :num_gt_objects, :]
+            label_array = batch_labels[i]
+            padded_label = np.full((max_objects,), -1, dtype=np.int32)
+            if label_array.shape[0] > 0:
+                padded_label[:label_array.shape[0]] = label_array
+            padded_labels.append(padded_label)
 
-                class_preds_to_consider = class_preds[i * num_gt_objects : (i + 1) * num_gt_objects]
-                gt_labels_for_image = gt_labels[i, :num_gt_objects]
+        # Yield the final, padded batch
+        yield (np.stack(batch_images), np.stack(padded_boxes), np.stack(padded_labels))
 
-                # 1. Calculate Regression Loss on the matched pairs
-                loss_reg = self.smooth_l1_loss(preds_to_consider, gt_boxes_for_image)
-
-                # 2. Calculate Classification Loss on the matched pairs
-                loss_cls = self.cross_entropy_loss(class_preds_to_consider, gt_labels_for_image)
-                
-                total_loss += loss_reg + loss_cls
-            else:
-                # If there are no ground truth objects, loss is zero for this image
-                total_loss += 0.0
-        
-        return total_loss / batch_size
-
-# --- Custom Callback for Step-by-Step Monitoring ---
+# --- Custom Callback for Monitoring ---
 class StepAndEpochMonitor(train.Callback):
-    """A custom callback to monitor training progress at each step and epoch."""
+    """A custom callback to monitor training progress."""
     def epoch_begin(self, run_context):
         cb_params = run_context.original_args()
         print(f"\n--- Epoch #{cb_params.cur_epoch_num} Begins ---")
-
     def step_begin(self, run_context):
         cb_params = run_context.original_args()
-        print(f"  [Trainer] Step #{cb_params.cur_step_num} Begins...")
-        
+        print(f"  [Trainer] Step #{cb_params.cur_step_num} Begins...", end='\r')
     def epoch_end(self, run_context):
         cb_params = run_context.original_args()
-        print(f"--- Epoch #{cb_params.cur_epoch_num} Finished ---")
+        print(f"\n--- Epoch #{cb_params.cur_epoch_num} Finished ---")
 
+# --- Main Training Execution ---
 if __name__ == '__main__':
-    ms.set_device("CPU")
+    ms.set_context(mode=ms.PYNATIVE_MODE, device_target="GPU")
 
     print("Initializing COCO dataset...")
     annotations_path = './coco2017/annotations/instances_train2017.json'
     images_path = './coco2017/train2017'
     coco_ds = CocoDataset(annotations_file=annotations_path, images_dir=images_path)
 
-    # Define image transformations as a list of operations
+    # --- HYBRID PIPELINE CONFIGURATION ---
+    BATCH_SIZE = 16 
+    
     image_transforms = [
         vision.Resize((224, 224)),
         vision.HWC2CHW(),
-        TypeCast(ms.float32)
     ]
 
-    print("\nCreating the custom data generator...")
-    batched_generator = create_batched_generator(
-        source_dataset=coco_ds,
-        batch_size=4,
-        image_transforms=image_transforms
-    )
+    # 1. Pre-process the entire dataset into a list in RAM
+    print("Pre-processing and loading all images into RAM. This may take a while...")
+    start_time = time.time()
+    processed_data = []
+    for i, data in enumerate(coco_ds):
+        image, boxes, labels = data
+        # Apply transforms manually
+        transformed_image = image
+        for op in image_transforms:
+            transformed_image = op(transformed_image)
+        processed_data.append((transformed_image, boxes, labels))
+        print(f"  Processed {i+1}/{len(coco_ds)} images...", end='\r')
+    
+    end_time = time.time()
+    print(f"\nDataset pre-processing finished in {end_time - start_time:.2f} seconds.")
 
-    # Create the final GeneratorDataset from our custom generator
+    # 2. Use the fast in-memory generator
     dataset = GeneratorDataset(
-        source=batched_generator,
+        source=lambda: create_preloaded_generator(processed_data, BATCH_SIZE),
         column_names=["image", "boxes", "labels"],
-        num_parallel_workers=1 # Set to 0 if running on Windows
+        num_parallel_workers=1 # Generator is already fast, no need for more workers
     )
-    print("MindSpore dataset created from generator.")
+    
+    print("Fast in-memory dataset pipeline created.")
 
     print("\nCreating model, loss function, and optimizer...")
     model = TrafficVisionDetector(num_classes=8)
@@ -194,15 +163,13 @@ if __name__ == '__main__':
 
     trainer = train.Model(network=network_with_loss, optimizer=optimizer)
 
-    # Define callbacks
-    loss_monitor = train.LossMonitor(per_print_times=10)
-    checkpoint_cb = train.ModelCheckpoint(prefix="traffic_vision", directory="./checkpoints")
-    step_monitor = StepAndEpochMonitor() # Our new custom callback
+    loss_monitor = train.LossMonitor(per_print_times=16)
+    checkpoint_cb = train.ModelCheckpoint(prefix="traffic_vision_full", directory="./checkpoints")
+    step_monitor = StepAndEpochMonitor()
 
-    print("\n--- Starting Training ---")
-    print("The trainer.train() function is now being called.")
+    print("\n--- Starting Full Training ---")
     trainer.train(
-        epoch=5,
+        epoch=20,
         train_dataset=dataset,
         callbacks=[loss_monitor, checkpoint_cb, step_monitor]
     )
