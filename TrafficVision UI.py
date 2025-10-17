@@ -1,5 +1,152 @@
 import flet as ft
 
+# --- Check History View ---
+def check_history_view(page: ft.Page, open_settings):
+    # Sample data (can be replaced with actual database or logs later)
+    history_data = [
+        {
+            "filename": "traffic_intersection_001.jpg",
+            "status": "completed",
+            "processed": "2024-01-15 14:30:22",
+            "objects": 8,
+            "confidence": 94,
+        },
+        {
+            "filename": "highway_scene_042.jpg",
+            "status": "completed",
+            "processed": "2024-01-15 14:28:15",
+            "objects": 12,
+            "confidence": 87,
+        },
+        {
+            "filename": "parking_lot_analysis.jpg",
+            "status": "completed",
+            "processed": "2024-01-15 14:25:03",
+            "objects": 6,
+            "confidence": 91,
+        },
+        {
+            "filename": "batch_processing_folder",
+            "status": "completed",
+            "processed": "2024-01-15 14:20:45",
+            "objects": 156,
+            "confidence": 89,
+        },
+    ]
+
+    # Function to generate a card for each history entry
+    def history_card(item):
+        return ft.Container(
+            content=ft.Row(
+                [
+                    ft.Column(
+                        [
+                            ft.Text(item["filename"], weight=ft.FontWeight.BOLD),
+                            ft.Text(
+                                f"Processed: {item['processed']}",
+                                color=ft.colors.GREY_600,
+                                size=12,
+                            ),
+                            ft.Text(
+                                f"Objects detected: {item['objects']} | Avg confidence: {item['confidence']}%",
+                                color=ft.colors.GREY_600,
+                                size=12,
+                            ),
+                        ],
+                        expand=True,
+                        spacing=2,
+                    ),
+                    ft.Container(
+                        content=ft.Text(
+                            item["status"],
+                            size=12,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.colors.BLUE_GREY_700,
+                        ),
+                        bgcolor=ft.colors.with_opacity(0.1, ft.colors.BLUE_GREY_400),
+                        border_radius=20,
+                        padding=ft.padding.symmetric(5, 10),
+                        alignment=ft.alignment.center,
+                    ),
+                    ft.Row(
+                        [
+                            ft.IconButton(ft.icons.VISIBILITY, tooltip="View"),
+                            ft.IconButton(ft.icons.DOWNLOAD, tooltip="Export"),
+                        ],
+                        alignment=ft.MainAxisAlignment.END,
+                        spacing=4,
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            bgcolor=ft.colors.WHITE,
+            border_radius=12,
+            padding=15,
+            margin=ft.margin.symmetric(vertical=5),
+            shadow=ft.BoxShadow(
+                blur_radius=8,
+                color=ft.colors.with_opacity(0.15, ft.colors.BLACK),
+            ),
+        )
+
+    # --- Title + Description ---
+    title_section = ft.Column(
+        [
+            ft.Row(
+                [
+                    ft.Icon(ft.icons.HISTORY, color=ft.colors.PURPLE_600),
+                    ft.Text("Analysis History", size=18, weight=ft.FontWeight.BOLD),
+                ],
+                spacing=10,
+                alignment=ft.MainAxisAlignment.START,
+            ),
+            ft.Text(
+                "View and manage your previous traffic image analyses",
+                color=ft.colors.GREY_600,
+                size=13,
+            ),
+        ],
+        spacing=4,
+    )
+
+    # --- Page Layout ---
+    return ft.View(
+        "/check_history",
+        [
+            ft.Row(
+                [
+                    ft.TextButton("← Back to Menu", on_click=lambda e: page.go("/")),
+                    ft.IconButton(
+                        ft.icons.SETTINGS,
+                        icon_color=ft.colors.GREY_700,
+                        on_click=open_settings,
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            ),
+            ft.Container(
+                content=ft.Column(
+                    [title_section] + [history_card(item) for item in history_data],
+                    spacing=10,
+                    expand=True,
+                ),
+                width=700,
+                padding=20,
+                bgcolor=ft.colors.WHITE,
+                border_radius=16,
+                shadow=ft.BoxShadow(
+                    blur_radius=12,
+                    color=ft.colors.with_opacity(0.2, ft.colors.BLACK),
+                ),
+                alignment=ft.alignment.top_center,
+            ),
+        ],
+        scroll=ft.ScrollMode.AUTO,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        vertical_alignment=ft.MainAxisAlignment.START,
+    )
+
 # --- Analyze Single Image View ---
 def analyze_single_image_view(page: ft.Page, open_settings):
     upload = ft.FilePicker()
@@ -212,41 +359,87 @@ def main(page: ft.Page):
     page.padding = 30
     page.scroll = "adaptive"
 
-    # Settings dialog
-    confidence_slider = ft.Slider(value=0.85, min=0.5, max=1.0, divisions=10, label="{value:.2f}")
-    settings_dialog = ft.AlertDialog(
-        title=ft.Text("Settings"),
-        content=ft.Column(
-            [ft.Text("Adjust AI Confidence Threshold"), confidence_slider],
-            tight=True,
-        ),
-        actions=[ft.TextButton("Close", on_click=lambda e: page.close(settings_dialog))],
-    )
+    # --- Settings Dialog Setup ---
+    confidence_value = ft.Text("Confidence Threshold: 70%", weight=ft.FontWeight.BOLD)
 
-    def open_settings(e):
+    def slider_changed(e):
+        confidence_value.value = f"Confidence Threshold: {int(e.control.value)}%"
+        page.update()
+
+    # ✅ Define open/close before the dialog so they're available
+    def close_settings(e=None):
+        settings_dialog.open = False
+        page.update()
+
+    def open_settings(e=None):
         page.dialog = settings_dialog
         settings_dialog.open = True
         page.update()
 
-    def get_header():
-        return ft.Row(
+    # --- Define the dialog AFTER the functions ---
+    settings_dialog = ft.AlertDialog(
+        modal=True,
+        title=ft.Text("Settings", size=18, weight=ft.FontWeight.BOLD),
+        content=ft.Column(
             [
-                ft.Container(
-                    content=ft.Icon(ft.icons.PSYCHOLOGY, size=40, color=ft.colors.BLUE_GREY_900),
-                    bgcolor=ft.colors.BLUE_GREY_50,
-                    padding=10,
-                    border_radius=12,
+                ft.Text("Configure your AI model parameters for traffic analysis.",
+                        color=ft.colors.GREY_700, size=13),
+                ft.Divider(),
+                confidence_value,
+                ft.Slider(
+                    min=0,
+                    max=100,
+                    value=70,
+                    divisions=100,
+                    active_color=ft.colors.BLACK,
+                    inactive_color=ft.colors.GREY_300,
+                    on_change=slider_changed,
                 ),
-                ft.Column(
-                    [
-                        ft.Text("TrafficVision", size=26, weight=ft.FontWeight.BOLD),
-                        ft.Text("AI-Powered Traffic Image Analysis", color=ft.colors.GREY_600),
-                    ]
+                ft.Text(
+                    "Minimum confidence level required for object detection",
+                    color=ft.colors.GREY_600,
+                    size=12,
                 ),
-                ft.IconButton(ft.icons.SETTINGS, icon_color=ft.colors.GREY_800, on_click=open_settings),
             ],
-            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            tight=True,
+            spacing=10,
+            width=400,
+        ),
+        actions_alignment=ft.MainAxisAlignment.END,
+        actions=[ft.TextButton("Close", on_click=close_settings)],
+    )
+
+    page.overlay.append(settings_dialog)
+
+    # --- Header ---
+    def get_header():
+        return ft.Container(
+            content=ft.Row(
+                [
+                    ft.Container(
+                        content=ft.Icon(ft.icons.PSYCHOLOGY, size=40, color=ft.colors.BLUE_GREY_900),
+                        bgcolor=ft.colors.BLUE_GREY_50,
+                        padding=10,
+                        border_radius=12,
+                    ),
+                    ft.Column(
+                        [
+                            ft.Text("TrafficVision", size=26, weight=ft.FontWeight.BOLD),
+                            ft.Text("AI-Powered Traffic Image Analysis", size=13, color=ft.colors.GREY_600),
+                        ],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        spacing=2,
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=10,
+            ),
+            alignment=ft.alignment.center,
+            padding=20,
         )
+
+
 
     def menu_card(icon, title, desc, color, on_click=None):
         return ft.Container(
@@ -276,31 +469,82 @@ def main(page: ft.Page):
         )
 
     # --- Navigation functions ---
-    def go_to_single(e):
-        page.go("/analyze_single_image")
+    def go_to_single(e): page.go("/analyze_single_image")
+    def go_to_multiple(e): page.go("/analyze_multiple_images")
+    def go_to_history(e): page.go("/check_history")
 
-    def go_to_multiple(e):
-        page.go("/analyze_multiple_images")
-
+    # --- Menu Cards must be defined BEFORE main_menu ---
     menu_cards = ft.Row(
         [
-            menu_card(ft.icons.CAMERA_ALT, "Analyze Image",
-                      "Upload a single traffic image for AI-powered object detection and classification",
-                      ft.colors.BLUE_600, on_click=go_to_single),
-            menu_card(ft.icons.COLLECTIONS, "Analyze Multiple Images",
-                      "Process a batch of traffic images for bulk analysis and reporting",
-                      ft.colors.GREEN_600, on_click=go_to_multiple),
-            menu_card(ft.icons.HISTORY, "Check History",
-                      "View and manage your previous analysis results and reports",
-                      ft.colors.PURPLE_600),
+            menu_card(ft.icons.CAMERA_ALT, "Analyze Image", "Upload a single traffic image for AI-powered object object detection and classification", ft.colors.BLUE_600, on_click=go_to_single),
+            menu_card(ft.icons.COLLECTIONS, "Analyze Multiple Images", "Process a batch of traffic images for bulk analysis and reporting", ft.colors.GREEN_600, on_click=go_to_multiple),
+            menu_card(ft.icons.HISTORY, "Check History", "View and manage your previous analysis results and reports", ft.colors.PURPLE_600, on_click=go_to_history),
         ],
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=40,
     )
 
-    main_menu = ft.View("/", [get_header(), ft.Divider(height=60, color="transparent"), menu_cards],
-                        vertical_alignment=ft.MainAxisAlignment.CENTER,
-                        horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+    # --- Now safe to create main_menu ---
+    main_menu = ft.View(
+        "/",
+        [
+            # Top row with centered header and right-aligned settings button
+            ft.Row(
+                [
+                    ft.Container(),  # Empty container for spacing on the left
+                    ft.Column(
+                        [
+                            ft.Row(
+                                [
+                                    ft.Container(
+                                        content=ft.Icon(
+                                            ft.icons.PSYCHOLOGY,
+                                            size=40,
+                                            color=ft.colors.BLACK,
+                                        ),
+                                        margin=ft.margin.only(right=10),
+                                    ),  
+                                    ft.Column(
+                                        [
+                                            ft.Text(
+                                                "TrafficVision",
+                                                size=26,
+                                                weight=ft.FontWeight.BOLD,
+                                                color=ft.colors.BLACK,
+                                            ),
+                                            ft.Text(
+                                                "AI-Powered Traffic Image Analysis",
+                                                size=14,
+                                                color=ft.colors.GREY_600,
+                                            ),
+                                        ],
+                                        spacing=0,
+                                        alignment=ft.MainAxisAlignment.CENTER,
+                                        horizontal_alignment=ft.CrossAxisAlignment.START,
+                                    ),
+                                ],
+                                alignment=ft.MainAxisAlignment.CENTER,
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    ),
+                    ft.IconButton(
+                        ft.icons.SETTINGS,
+                        icon_color=ft.colors.GREY_700,
+                        tooltip="Settings",
+                        on_click=open_settings,
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            ),
+            ft.Divider(height=60, color="transparent"),
+            menu_cards,
+        ],
+        vertical_alignment=ft.MainAxisAlignment.CENTER,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+    )
+
 
     def route_change(e):
         page.views.clear()
@@ -310,6 +554,8 @@ def main(page: ft.Page):
             page.views.append(analyze_single_image_view(page, open_settings))
         elif page.route == "/analyze_multiple_images":
             page.views.append(analyze_multiple_images_view(page, open_settings))
+        elif page.route == "/check_history":
+            page.views.append(check_history_view(page, open_settings))
         page.update()
 
     page.on_route_change = route_change
@@ -320,6 +566,5 @@ def main(page: ft.Page):
         page.go(page.views[-1].route)
 
     page.on_view_pop = view_pop
-
 
 ft.app(target=main)
