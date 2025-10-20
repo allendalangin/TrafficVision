@@ -44,12 +44,12 @@ def check_history_view(page: ft.Page, open_settings):
                             ft.Text(item["filename"], weight=ft.FontWeight.BOLD),
                             ft.Text(
                                 f"Processed: {item['processed']}",
-                                color=ft.colors.GREY_600,
+                                color=ft.Colors.GREY_600,
                                 size=12,
                             ),
                             ft.Text(
                                 f"Objects detected: {item['objects']} | Avg confidence: {item['confidence']}%",
-                                color=ft.colors.GREY_600,
+                                color=ft.Colors.GREY_600,
                                 size=12,
                             ),
                         ],
@@ -61,17 +61,17 @@ def check_history_view(page: ft.Page, open_settings):
                             item["status"],
                             size=12,
                             weight=ft.FontWeight.BOLD,
-                            color=ft.colors.BLUE_GREY_700,
+                            color=ft.Colors.BLUE_GREY_700,
                         ),
-                        bgcolor=ft.colors.with_opacity(0.1, ft.colors.BLUE_GREY_400),
+                        bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.BLUE_GREY_400),
                         border_radius=20,
                         padding=ft.padding.symmetric(5, 10),
                         alignment=ft.alignment.center,
                     ),
                     ft.Row(
                         [
-                            ft.IconButton(ft.icons.VISIBILITY, tooltip="View"),
-                            ft.IconButton(ft.icons.DOWNLOAD, tooltip="Export"),
+                            ft.IconButton(ft.Icons.VISIBILITY, tooltip="View"),
+                            ft.IconButton(ft.Icons.DOWNLOAD, tooltip="Export"),
                         ],
                         alignment=ft.MainAxisAlignment.END,
                         spacing=4,
@@ -80,13 +80,13 @@ def check_history_view(page: ft.Page, open_settings):
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
-            bgcolor=ft.colors.WHITE,
+            bgcolor=ft.Colors.WHITE,
             border_radius=12,
             padding=15,
             margin=ft.margin.symmetric(vertical=5),
             shadow=ft.BoxShadow(
                 blur_radius=8,
-                color=ft.colors.with_opacity(0.15, ft.colors.BLACK),
+                color=ft.Colors.with_opacity(0.15, ft.Colors.BLACK),
             ),
         )
 
@@ -95,7 +95,7 @@ def check_history_view(page: ft.Page, open_settings):
         [
             ft.Row(
                 [
-                    ft.Icon(ft.icons.HISTORY, color=ft.colors.PURPLE_600),
+                    ft.Icon(ft.Icons.HISTORY, color=ft.Colors.PURPLE_600),
                     ft.Text("Analysis History", size=18, weight=ft.FontWeight.BOLD),
                 ],
                 spacing=10,
@@ -103,7 +103,7 @@ def check_history_view(page: ft.Page, open_settings):
             ),
             ft.Text(
                 "View and manage your previous traffic image analyses",
-                color=ft.colors.GREY_600,
+                color=ft.Colors.GREY_600,
                 size=13,
             ),
         ],
@@ -118,8 +118,8 @@ def check_history_view(page: ft.Page, open_settings):
                 [
                     ft.TextButton("← Back to Menu", on_click=lambda e: page.go("/")),
                     ft.IconButton(
-                        ft.icons.SETTINGS,
-                        icon_color=ft.colors.GREY_700,
+                        ft.Icons.SETTINGS,
+                        icon_color=ft.Colors.GREY_700,
                         on_click=open_settings,
                     ),
                 ],
@@ -133,11 +133,11 @@ def check_history_view(page: ft.Page, open_settings):
                 ),
                 width=700,
                 padding=20,
-                bgcolor=ft.colors.WHITE,
+                bgcolor=ft.Colors.WHITE,
                 border_radius=16,
                 shadow=ft.BoxShadow(
                     blur_radius=12,
-                    color=ft.colors.with_opacity(0.2, ft.colors.BLACK),
+                    color=ft.Colors.with_opacity(0.2, ft.Colors.BLACK),
                 ),
                 alignment=ft.alignment.top_center,
             ),
@@ -150,7 +150,7 @@ def check_history_view(page: ft.Page, open_settings):
 # --- Analyze Single Image View ---
 def analyze_single_image_view(page: ft.Page, open_settings):
     upload = ft.FilePicker()
-    upload_result = ft.Text("", color=ft.colors.GREY_600, size=12, italic=True)
+    upload_result = ft.Text("", color=ft.Colors.GREY_600, size=12, italic=True)
 
     def on_upload_result(e: ft.FilePickerResultEvent):
         if e.files:
@@ -165,23 +165,23 @@ def analyze_single_image_view(page: ft.Page, open_settings):
     analyze_button = ft.ElevatedButton(
         "Analyze Image",
         width=300,
-        bgcolor=ft.colors.BLUE_600,
-        color=ft.colors.WHITE,
+        bgcolor=ft.Colors.BLUE_600,
+        color=ft.Colors.WHITE,
         on_click=lambda e: page.snack_bar.open(ft.SnackBar(ft.Text("Analyzing image..."))),
     )
 
     upload_box = ft.Container(
         content=ft.Column(
             [
-                ft.Icon(ft.icons.UPLOAD_FILE, size=40, color=ft.colors.GREY_600),
+                ft.Icon(ft.Icons.UPLOAD_FILE, size=40, color=ft.Colors.GREY_600),
                 ft.Text("Upload an image", weight=ft.FontWeight.BOLD),
-                ft.Text("PNG, JPG or JPEG", color=ft.colors.GREY_500, size=12),
+                ft.Text("PNG, JPG or JPEG", color=ft.Colors.GREY_500, size=12),
             ],
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             spacing=5,
         ),
-        border=ft.border.all(1, ft.colors.GREY_300),
+        border=ft.border.all(1, ft.Colors.GREY_300),
         border_radius=12,
         padding=40,
         width=400,
@@ -197,7 +197,7 @@ def analyze_single_image_view(page: ft.Page, open_settings):
             [
                 ft.Row(
                     [
-                        ft.Icon(ft.icons.CAMERA_ALT, color=ft.colors.BLUE_600),
+                        ft.Icon(ft.Icons.CAMERA_ALT, color=ft.Colors.BLUE_600),
                         ft.Text("Analyze Single Image", size=18, weight=ft.FontWeight.BOLD),
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
@@ -206,7 +206,7 @@ def analyze_single_image_view(page: ft.Page, open_settings):
                 ft.Text(
                     "Upload a traffic image for AI-powered object detection and classification",
                     text_align=ft.TextAlign.CENTER,
-                    color=ft.colors.GREY_600,
+                    color=ft.Colors.GREY_600,
                     size=13,
                 ),
                 ft.Divider(height=20, color="transparent"),
@@ -221,10 +221,10 @@ def analyze_single_image_view(page: ft.Page, open_settings):
         width=500,
         padding=30,
         border_radius=20,
-        bgcolor=ft.colors.WHITE,
+        bgcolor=ft.Colors.WHITE,
         shadow=ft.BoxShadow(
             blur_radius=12,
-            color=ft.colors.with_opacity(0.2, ft.colors.BLACK),
+            color=ft.Colors.with_opacity(0.2, ft.Colors.BLACK),
         ),
         alignment=ft.alignment.center,
     )
@@ -235,7 +235,7 @@ def analyze_single_image_view(page: ft.Page, open_settings):
             ft.Row(
                 [
                     ft.TextButton("← Back to Menu", on_click=lambda e: page.go("/")),
-                    ft.IconButton(ft.icons.SETTINGS, icon_color=ft.colors.GREY_700, on_click=open_settings),
+                    ft.IconButton(ft.Icons.SETTINGS, icon_color=ft.Colors.GREY_700, on_click=open_settings),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
@@ -254,7 +254,7 @@ def analyze_single_image_view(page: ft.Page, open_settings):
 # --- Analyze Multiple Images View ---
 def analyze_multiple_images_view(page: ft.Page, open_settings):
     upload = ft.FilePicker()
-    upload_result = ft.Text("", color=ft.colors.GREY_600, size=12, italic=True)
+    upload_result = ft.Text("", color=ft.Colors.GREY_600, size=12, italic=True)
 
     def on_upload_result(e: ft.FilePickerResultEvent):
         if e.files:
@@ -269,23 +269,23 @@ def analyze_multiple_images_view(page: ft.Page, open_settings):
     analyze_button = ft.ElevatedButton(
         "Analyze Batch",
         width=300,
-        bgcolor=ft.colors.GREEN_600,
-        color=ft.colors.WHITE,
+        bgcolor=ft.Colors.GREEN_600,
+        color=ft.Colors.WHITE,
         on_click=lambda e: page.snack_bar.open(ft.SnackBar(ft.Text("Analyzing multiple images..."))),
     )
 
     upload_box = ft.Container(
         content=ft.Column(
             [
-                ft.Icon(ft.icons.COLLECTIONS, size=40, color=ft.colors.GREY_600),
+                ft.Icon(ft.Icons.COLLECTIONS, size=40, color=ft.Colors.GREY_600),
                 ft.Text("Upload multiple images", weight=ft.FontWeight.BOLD),
-                ft.Text("PNG, JPG or JPEG files", color=ft.colors.GREY_500, size=12),
+                ft.Text("PNG, JPG or JPEG files", color=ft.Colors.GREY_500, size=12),
             ],
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             spacing=5,
         ),
-        border=ft.border.all(1, ft.colors.GREY_300),
+        border=ft.border.all(1, ft.Colors.GREY_300),
         border_radius=12,
         padding=40,
         width=400,
@@ -301,7 +301,7 @@ def analyze_multiple_images_view(page: ft.Page, open_settings):
             [
                 ft.Row(
                     [
-                        ft.Icon(ft.icons.COLLECTIONS, color=ft.colors.GREEN_600),
+                        ft.Icon(ft.Icons.COLLECTIONS, color=ft.Colors.GREEN_600),
                         ft.Text("Analyze Multiple Images", size=18, weight=ft.FontWeight.BOLD),
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
@@ -310,7 +310,7 @@ def analyze_multiple_images_view(page: ft.Page, open_settings):
                 ft.Text(
                     "Upload a batch of traffic images for bulk processing and analysis",
                     text_align=ft.TextAlign.CENTER,
-                    color=ft.colors.GREY_600,
+                    color=ft.Colors.GREY_600,
                     size=13,
                 ),
                 ft.Divider(height=20, color="transparent"),
@@ -325,8 +325,8 @@ def analyze_multiple_images_view(page: ft.Page, open_settings):
         width=500,
         padding=30,
         border_radius=20,
-        bgcolor=ft.colors.WHITE,
-        shadow=ft.BoxShadow(blur_radius=12, color=ft.colors.with_opacity(0.2, ft.colors.BLACK)),
+        bgcolor=ft.Colors.WHITE,
+        shadow=ft.BoxShadow(blur_radius=12, color=ft.Colors.with_opacity(0.2, ft.Colors.BLACK)),
         alignment=ft.alignment.center,
     )
 
@@ -336,7 +336,7 @@ def analyze_multiple_images_view(page: ft.Page, open_settings):
             ft.Row(
                 [
                     ft.TextButton("← Back to Menu", on_click=lambda e: page.go("/")),
-                    ft.IconButton(ft.icons.SETTINGS, icon_color=ft.colors.GREY_700, on_click=open_settings),
+                    ft.IconButton(ft.Icons.SETTINGS, icon_color=ft.Colors.GREY_700, on_click=open_settings),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
@@ -383,7 +383,7 @@ def main(page: ft.Page):
         content=ft.Column(
             [
                 ft.Text("Configure your AI model parameters for traffic analysis.",
-                        color=ft.colors.GREY_700, size=13),
+                        color=ft.Colors.GREY_700, size=13),
                 ft.Divider(),
                 confidence_value,
                 ft.Slider(
@@ -391,13 +391,13 @@ def main(page: ft.Page):
                     max=100,
                     value=70,
                     divisions=100,
-                    active_color=ft.colors.BLACK,
-                    inactive_color=ft.colors.GREY_300,
+                    active_color=ft.Colors.BLACK,
+                    inactive_color=ft.Colors.GREY_300,
                     on_change=slider_changed,
                 ),
                 ft.Text(
                     "Minimum confidence level required for object detection",
-                    color=ft.colors.GREY_600,
+                    color=ft.Colors.GREY_600,
                     size=12,
                 ),
             ],
@@ -417,15 +417,15 @@ def main(page: ft.Page):
             content=ft.Row(
                 [
                     ft.Container(
-                        content=ft.Icon(ft.icons.PSYCHOLOGY, size=40, color=ft.colors.BLUE_GREY_900),
-                        bgcolor=ft.colors.BLUE_GREY_50,
+                        content=ft.Icon(ft.Icons.PSYCHOLOGY, size=40, color=ft.Colors.BLUE_GREY_900),
+                        bgcolor=ft.Colors.BLUE_GREY_50,
                         padding=10,
                         border_radius=12,
                     ),
                     ft.Column(
                         [
                             ft.Text("TrafficVision", size=26, weight=ft.FontWeight.BOLD),
-                            ft.Text("AI-Powered Traffic Image Analysis", size=13, color=ft.colors.GREY_600),
+                            ft.Text("AI-Powered Traffic Image Analysis", size=13, color=ft.Colors.GREY_600),
                         ],
                         alignment=ft.MainAxisAlignment.CENTER,
                         spacing=2,
@@ -447,12 +447,12 @@ def main(page: ft.Page):
                 [
                     ft.Container(
                         content=ft.Icon(icon, size=40, color=color),
-                        bgcolor=ft.colors.with_opacity(0.15, color),
+                        bgcolor=ft.Colors.with_opacity(0.15, color),
                         border_radius=12,
                         padding=10,
                     ),
                     ft.Text(title, size=18, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
-                    ft.Text(desc, size=13, text_align=ft.TextAlign.CENTER, color=ft.colors.GREY_600),
+                    ft.Text(desc, size=13, text_align=ft.TextAlign.CENTER, color=ft.Colors.GREY_600),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=8,
@@ -461,9 +461,9 @@ def main(page: ft.Page):
             height=220,
             alignment=ft.alignment.center,
             padding=20,
-            bgcolor=ft.colors.WHITE,
+            bgcolor=ft.Colors.WHITE,
             border_radius=16,
-            shadow=ft.BoxShadow(blur_radius=8, color=ft.colors.with_opacity(0.2, ft.colors.BLACK)),
+            shadow=ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(0.2, ft.Colors.BLACK)),
             ink=True,
             on_click=on_click,
         )
@@ -476,9 +476,9 @@ def main(page: ft.Page):
     # --- Menu Cards must be defined BEFORE main_menu ---
     menu_cards = ft.Row(
         [
-            menu_card(ft.icons.CAMERA_ALT, "Analyze Image", "Upload a single traffic image for AI-powered object object detection and classification", ft.colors.BLUE_600, on_click=go_to_single),
-            menu_card(ft.icons.COLLECTIONS, "Analyze Multiple Images", "Process a batch of traffic images for bulk analysis and reporting", ft.colors.GREEN_600, on_click=go_to_multiple),
-            menu_card(ft.icons.HISTORY, "Check History", "View and manage your previous analysis results and reports", ft.colors.PURPLE_600, on_click=go_to_history),
+            menu_card(ft.Icons.CAMERA_ALT, "Analyze Image", "Upload a single traffic image for AI-powered object object detection and classification", ft.Colors.BLUE_600, on_click=go_to_single),
+            menu_card(ft.Icons.COLLECTIONS, "Analyze Multiple Images", "Process a batch of traffic images for bulk analysis and reporting", ft.Colors.GREEN_600, on_click=go_to_multiple),
+            menu_card(ft.Icons.HISTORY, "Check History", "View and manage your previous analysis results and reports", ft.Colors.PURPLE_600, on_click=go_to_history),
         ],
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=40,
@@ -498,9 +498,9 @@ def main(page: ft.Page):
                                 [
                                     ft.Container(
                                         content=ft.Icon(
-                                            ft.icons.PSYCHOLOGY,
+                                            ft.Icons.PSYCHOLOGY,
                                             size=40,
-                                            color=ft.colors.BLACK,
+                                            color=ft.Colors.BLACK,
                                         ),
                                         margin=ft.margin.only(right=10),
                                     ),  
@@ -510,12 +510,12 @@ def main(page: ft.Page):
                                                 "TrafficVision",
                                                 size=26,
                                                 weight=ft.FontWeight.BOLD,
-                                                color=ft.colors.BLACK,
+                                                color=ft.Colors.BLACK,
                                             ),
                                             ft.Text(
                                                 "AI-Powered Traffic Image Analysis",
                                                 size=14,
-                                                color=ft.colors.GREY_600,
+                                                color=ft.Colors.GREY_600,
                                             ),
                                         ],
                                         spacing=0,
@@ -530,8 +530,8 @@ def main(page: ft.Page):
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
                     ft.IconButton(
-                        ft.icons.SETTINGS,
-                        icon_color=ft.colors.GREY_700,
+                        ft.Icons.SETTINGS,
+                        icon_color=ft.Colors.GREY_700,
                         tooltip="Settings",
                         on_click=open_settings,
                     ),
