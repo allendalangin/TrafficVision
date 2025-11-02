@@ -20,8 +20,8 @@ The TrafficVision system provides comprehensive tools for traffic safety assessm
 
 The system's core object detection capability is built using Transfer Learning.
 
-- **Architecture**: EfficientNetV2M
-- **Training Foundation**: Pre-trained on the COCO dataset
+- **Architecture**: EfficientNet-B1
+- **Training Foundation**: Pre-trained on the COCO2017 subset
 - **Performance Goal**: The system is designed to achieve a minimum of 90% mean Average Precision (mAP) and maintain processing times under 5 seconds per image.
 - **Model File**: The checkpoint file `efficientnet_b1_8class_multilabel_BEST.ckpt` is required in the `server/` directory.
 
