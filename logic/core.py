@@ -43,6 +43,8 @@ class DatabaseManager:
         """Creates database tables if they don't exist."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
+            # Ensure ON DELETE CASCADE is enabled
+            cursor.execute("PRAGMA foreign_keys = ON")
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS analyses (
                     analysis_id TEXT PRIMARY KEY,
@@ -191,6 +193,26 @@ class DatabaseManager:
                 )
         return None
 
+    # --- FIX 1A: New DB deletion methods ---
+    def delete_analysis_by_id(self, analysis_id: str):
+        """Deletes a single analysis record from the local DB."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            # The classifications table is deleted via CASCADE
+            cursor.execute("DELETE FROM analyses WHERE analysis_id = ?", (analysis_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def get_image_path_by_id(self, analysis_id: str) -> Optional[str]:
+        """Retrieves the image_name (path to local file) for deletion."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT image_name FROM analyses WHERE analysis_id = ?", (analysis_id,))
+            row = cursor.fetchone()
+            return row["image_name"] if row else None
+    # ----------------------------------------
+
+
 # --- State Management (Session) ---
 
 class Session:
@@ -228,28 +250,51 @@ class Session:
     def get_user_settings(self) -> UserSettings:
         return self.user_settings
     
+    # --- FIX 1B: Updated removal to delete from DB and Disk (File) ---
     def remove_analysis(self, analysis_id: str):
-        """Removes a single analysis from the in-memory list."""
+        """Removes a single analysis from the in-memory list and deletes from DB/disk."""
         
-        # 1. Check for single analysis removal
+        # 0. Get the image path before deleting the DB record
+        image_path = self.db.get_image_path_by_id(analysis_id)
+        
+        # 1. Delete the local persistent image file
+        if image_path and os.path.exists(image_path):
+            try:
+                os.remove(image_path)
+                print(f"--- SUCCESS: Deleted persistent image file: {image_path} ---")
+            except Exception as e:
+                print(f"--- ERROR: Failed to delete image file {image_path}: {e} ---")
+
+        # 2. Delete the record from the client's local database
+        self.db.delete_analysis_by_id(analysis_id)
+        
+        # 3. Update in-memory list (existing logic)
+        
+        # Check for single analysis removal
         self.analyses = [
             item for item in self.analyses 
             if not (isinstance(item, AnalysisResult) and item.analysis_id == analysis_id)
         ]
 
-        # 2. Check for removal from a batch
+        # Check for removal from a batch
+        items_to_remove = []
         for batch in [item for item in self.analyses if isinstance(item, BatchAnalysis)]:
             original_count = len(batch.analyses)
             batch.analyses = [
                 analysis for analysis in batch.analyses 
                 if analysis.analysis_id != analysis_id
             ]
-            # If the batch is now empty, remove the batch itself
+            # If the batch is now empty, flag the batch itself for removal
             if not batch.analyses:
-                self.analyses.remove(batch)
-            # If removed from a batch, we're done
+                 items_to_remove.append(batch)
+            
+            # If removed from a batch, remove the empty batch if flagged and stop
             if len(batch.analyses) < original_count:
+                for item in items_to_remove:
+                    self.analyses.remove(item)
                 return
+    # -----------------------------------------------------------------
+
 
 # --- API Client ---
 
@@ -267,6 +312,7 @@ class APIClient:
         
         try:
             # Persistent copy logic
+            os.makedirs(PERSISTENT_IMAGE_DIR, exist_ok=True)
             unique_filename = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')}_{file_name}"
             persistent_path = os.path.join(PERSISTENT_IMAGE_DIR, unique_filename)
             shutil.copy(file_path, persistent_path)
@@ -291,8 +337,14 @@ class APIClient:
                 raise Exception(f"API Error {response.status_code}: {detail}")
 
         except httpx.ConnectError:
+            # Clean up the local file if API connection failed
+            if 'persistent_path' in locals() and os.path.exists(persistent_path):
+                 os.remove(persistent_path)
             raise Exception("Connection Error: Is the API server running?")
         except Exception as e:
+            # Clean up the local file if any other error occurred
+            if 'persistent_path' in locals() and os.path.exists(persistent_path):
+                 os.remove(persistent_path)
             raise e 
 
     async def upload_image(self, file: Optional[ft.FilePickerResultEvent]) -> Optional[AnalysisResult]:

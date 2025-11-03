@@ -164,32 +164,54 @@ class AppLogic:
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=40,
         )
         
+        # --- TITLE SECTION (TrafficVision title and subtitle) ---
+        title_section = ft.Container(
+            content=ft.Row([
+                ft.Container(content=ft.Icon(ft.Icons.PSYCHOLOGY, size=40, color=ft.Colors.BLACK), margin=ft.margin.only(right=10)),
+                ft.Column([
+                    ft.Text("TrafficVision", size=26, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK),
+                    ft.Text("AI-Powered Traffic Image Analysis", size=14, color=ft.Colors.GREY_600),
+                ], spacing=0, alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.START),
+            ], alignment=ft.MainAxisAlignment.CENTER),
+            alignment=ft.alignment.center,
+            padding=ft.padding.symmetric(vertical=20)
+        )
+        
+        # --- Settings Row (Pushes the icon to the right) ---
+        settings_row = ft.Row( 
+            [
+                ft.Container(expand=True), 
+                ft.IconButton(ft.Icons.SETTINGS, icon_color=ft.Colors.GREY_700, tooltip="Settings", 
+                              on_click=self.on_settings_click),
+            ], 
+            alignment=ft.MainAxisAlignment.END,
+            height=40 
+        )
+
+        # --- Main Content Structure (FIXED ALIGNMENT) ---
         main_content = ft.Column(
             [
-                ft.Row( 
-                    [
-                        ft.Container(
-                            content=ft.Row([
-                                ft.Container(content=ft.Icon(ft.Icons.PSYCHOLOGY, size=40, color=ft.Colors.BLACK), margin=ft.margin.only(right=10)),
-                                ft.Column([
-                                    ft.Text("TrafficVision", size=26, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK),
-                                    ft.Text("AI-Powered Traffic Image Analysis", size=14, color=ft.Colors.GREY_600),
-                                ], spacing=0, alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.START),
-                            ], alignment=ft.MainAxisAlignment.CENTER),
-                            alignment=ft.alignment.center,
-                            expand=True
-                        ),
-                        
-                        ft.IconButton(ft.Icons.SETTINGS, icon_color=ft.Colors.GREY_700, tooltip="Settings", 
-                                      on_click=self.on_settings_click),
-                    ], 
-                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                ),
+                settings_row,     # Settings icon at the top right
+                
+                # --- FIX: Wrap the inner Column in a Container to apply margin ---
                 ft.Container(
-                    content=menu_cards,
-                    expand=True,
-                    alignment=ft.alignment.center, 
-                ),
+                    content=ft.Column(
+                        [
+                            title_section,
+                            ft.Container(
+                                content=menu_cards,
+                                alignment=ft.alignment.center, 
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.CENTER,  # Vertically centers its children
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        expand=True, # Takes all remaining height
+                        # REMOVED: margin=ft.margin.only(top=-50) 
+                    ),
+                    # Margin now applied to the Container wrapper
+                    margin=ft.margin.only(top=-100),
+                    expand=True 
+                )
             ],
             expand=True, 
             horizontal_alignment=ft.CrossAxisAlignment.CENTER 
